@@ -33,4 +33,5 @@ Upon client putsecret request:
 Question: Is double-encryption with both the server key and the PBKDF key
 necessary?
 
-
+## Additional Features
+Scopes
