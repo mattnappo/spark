@@ -30,8 +30,15 @@ Upon client putsecret request:
  * Public key is used to encrypt the file and send to the server
  * Encrypted file is sent to server
 
-Question: Is double-encryption with both the server key and the PBKDF key
-necessary?
+## Algorithms
+Algorithms used
+ * Core asymmetric keypair: ed25519 (for signatures)
+ * Key derivation: argon2
+ * Outer layer (which encrypts core pair): RSA
+
+Scheme
+ * Gen random ed25519 pair (Core keypair)
+ * passphrase -> argon2 -> deterministic rsa gen --> en/decrypt core
 
 ## Additional Features
 Scopes
