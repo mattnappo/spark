@@ -12,7 +12,8 @@ use rsa::{PaddingScheme, PublicKey, RsaPrivateKey, RsaPublicKey};
 use serde::{
     ser::SerializeSeq, Deserialize, Deserializer, Serialize, Serializer,
 };
-use std::time::Instant;
+use std::io;
+use std::io::Write;
 
 /// Server secret information
 #[derive(Debug, Serialize, Deserialize)]
@@ -51,19 +52,35 @@ impl ServerKey {
         }
     }
 
-    /// Return an encrypted `ServerKey` with a user passphrase
+    /// Return an encrypted `ServerKey` with a user passphrase and consume the `ServerKey`
     pub fn lock(self) -> Result<Vec<u8>, bincode::Error> {
         // Serialize
         let ser = bincode::serialize(&self).unwrap();
 
         // Read user passphrase from stdin and expand
-        let phrase = rpassword::read_password().unwrap();
-        let expanded = a2_hash(phrase.as_bytes(), &self.salt[..]);
+        let phrase = {
+            print!("Set passphrase: ");
+            io::stdout().flush().unwrap();
+            let phrase1 = rpassword::read_password().unwrap();
+
+            print!("Confirm passphrase: ");
+            io::stdout().flush().unwrap();
+            let phrase2 = rpassword::read_password().unwrap();
+
+            if phrase1 != phrase2 {
+                // .unwrap()
+                println!("passphrases do not match");
+                return Ok(Vec::new());
+            }
+            phrase1
+        };
+
+        let expanded = a2_hash(Vec::from(phrase.as_bytes()), self.salt);
 
         // Generate cipher
-        let key = Key::from_slice(expanded.as_bytes());
+        let key = Key::from_slice(&expanded[..]);
         let cipher = Aes256Gcm::new(key);
-        let nonce = Nonce::from_slice(&self.salt);
+        let nonce = Nonce::from_slice(&self.salt[0..12]);
 
         // Encrypt
         Ok(cipher.encrypt(nonce, &ser[..]).unwrap())
