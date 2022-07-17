@@ -1,6 +1,10 @@
 use super::payloads::*;
+use crate::Error;
 use argon2::{
-    password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
+    password_hash::{
+        rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier,
+        SaltString,
+    },
     Argon2,
 };
 use std::default::Default;
@@ -26,17 +30,17 @@ enum Scope {
 struct SecretID(Vec<u8>);
 
 impl SecretID {
-    fn from(label: &str, desc: &str, creation: u128) -> Self {
+    fn from(label: &str, desc: &str, creation: u128) -> Result<Self, Error> {
         let data = format!("{}{}{}", &label, &desc, creation);
         let salt = SaltString::generate(&mut OsRng);
         let argon2 = Argon2::default();
 
-        Self(
-            match argon2.hash_password(data.as_bytes(), &salt).unwrap().hash {
-                Some(h) => h.as_bytes().to_vec(),
-                None => panic!("null hashing error"),
-            },
-        )
+        let id = match argon2.hash_password(data.as_bytes(), &salt)?.hash {
+            Some(h) => h.as_bytes().to_vec(),
+            None => return Err(Error::Fail("could not hash salt".to_string())),
+        };
+
+        Ok(Self(id))
     }
 }
 
@@ -75,19 +79,22 @@ struct Header {
 }
 
 impl Header {
-    fn new(label: &str, desc: &str, expiration: u64, scope: Scope) -> Self {
-        let creation = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_millis();
-        Self {
-            id: SecretID::from(label, desc, creation),
+    fn new(
+        label: &str,
+        desc: &str,
+        expiration: u64,
+        scope: Scope,
+    ) -> Result<Self, Error> {
+        let creation =
+            SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis();
+        Ok(Self {
+            id: SecretID::from(label, desc, creation)?,
             label: label.to_owned(),
             desc: desc.to_owned(),
             creation,
             expiration,
             scope,
-        }
+        })
     }
 }
 

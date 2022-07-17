@@ -66,9 +66,9 @@ impl ServerKey {
     }
 
     /// Return an encrypted `ServerKey` with a user passphrase and consume the `ServerKey`
-    fn lock(self) -> Result<EncServerKey, bincode::Error> {
+    fn lock(self) -> Result<EncServerKey, Error> {
         // Serialize
-        let ser = bincode::serialize(&self).unwrap();
+        let ser = bincode::serialize(&self)?;
 
         // TODO make idiomatic
         let mut ser_nonce = [0u8; NONCE_LEN];
@@ -78,9 +78,9 @@ impl ServerKey {
         let nonce = Nonce::from_slice(&self.salt[0..NONCE_LEN]);
 
         // Encrypt
-        let cipher = derive_key(self.salt);
+        let cipher = derive_key(self.salt, true)?;
         Ok(EncServerKey {
-            server_key: cipher.encrypt(nonce, &ser[..]).unwrap(),
+            server_key: cipher.encrypt(nonce, &ser[..])?,
             nonce: ser_nonce,
             salt: self.salt,
         })
@@ -89,9 +89,9 @@ impl ServerKey {
     /// Unlock a `ServerKey`
     fn unlock(enc: EncServerKey) -> Result<Self, Error> {
         // Decrypt the bytes
-        let cipher = derive_key(enc.salt);
+        let cipher = derive_key(enc.salt, false)?;
         let nonce = Nonce::from_slice(&enc.nonce[..]);
-        let decrypted = cipher.decrypt(nonce, &enc.server_key[..]).unwrap();
+        let decrypted = cipher.decrypt(nonce, &enc.server_key[..])?;
 
         // Deserialize
         Ok(bincode::deserialize::<Self>(&decrypted[..])?)
@@ -102,7 +102,7 @@ impl ServerKey {
     pub fn write_key(self) -> Result<String, Error> {
         // Lock and serialize
         let salt: [u8; SALT_LEN] = self.salt;
-        let locked = self.lock().unwrap();
+        let locked = self.lock()?;
         let ser = bincode::serialize(&locked)?;
 
         // Set destination
@@ -115,9 +115,7 @@ impl ServerKey {
         // Return filename
         match path.to_str() {
             Some(p) => Ok(String::from(p)),
-            None => Err(Error::General(GeneralError::new(
-                "cannot construct path".to_string(),
-            ))),
+            None => Err(Error::Fail("cannot construct path".to_string())),
         }
     }
 

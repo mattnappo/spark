@@ -1,7 +1,10 @@
 pub mod crypto;
 pub mod primitives;
 
+use argon2::password_hash::errors::Error as HashError;
 use std::error::Error as StdError;
+use std::str;
+use std::time::SystemTimeError;
 use std::{fmt, io};
 
 pub const DATA_DIR: &'static str = "./data/";
@@ -13,6 +16,10 @@ pub enum Error {
     Io(io::Error),
     Aes(aes_gcm::Error),
     General(GeneralError),
+    Argon2(argon2::Error),
+    Utf8(str::Utf8Error),
+    Hashing(HashError),
+    SystemTime(SystemTimeError),
     Fail(String),
 }
 
@@ -41,9 +48,32 @@ impl StdError for GeneralError {
 
 // TODO: Write a derive macro for these
 
+impl From<SystemTimeError> for Error {
+    fn from(err: SystemTimeError) -> Error {
+        Error::SystemTime(err)
+    }
+}
 impl From<GeneralError> for Error {
     fn from(err: GeneralError) -> Error {
         Error::General(err)
+    }
+}
+
+impl From<HashError> for Error {
+    fn from(err: HashError) -> Error {
+        Error::Hashing(err)
+    }
+}
+
+impl From<str::Utf8Error> for Error {
+    fn from(err: str::Utf8Error) -> Error {
+        Error::Utf8(err)
+    }
+}
+
+impl From<argon2::Error> for Error {
+    fn from(err: argon2::Error) -> Error {
+        Error::Argon2(err)
     }
 }
 
