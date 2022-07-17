@@ -67,7 +67,7 @@ impl ServerKey {
 
         // TODO make idiomatic
         let mut ser_nonce = [0u8; NONCE_LEN];
-        for i in 0..SALT_LEN {
+        for i in 0..NONCE_LEN {
             ser_nonce[i] = self.salt[i];
         }
         let nonce = Nonce::from_slice(&self.salt[0..NONCE_LEN]);

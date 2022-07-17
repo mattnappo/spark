@@ -14,13 +14,13 @@ use std::io::Write;
 use std::str;
 
 pub const SALT_LEN: usize = 16;
+pub const HASH_LEN: usize = 32;
 pub const NONCE_LEN: usize = 12;
 pub const KEY_SIZE: usize = 2048;
 
 pub fn a2_hash(data: Vec<u8>, salt: [u8; SALT_LEN]) -> Vec<u8> {
-    let ctx = Argon2::from(
-        Params::new(4096u32, 3u32, 1u32, Some(NONCE_LEN)).unwrap(),
-    );
+    let ctx =
+        Argon2::from(Params::new(4096u32, 3u32, 1u32, Some(HASH_LEN)).unwrap());
     // (&data[..]).asd(); // &[u8]
     match ctx
         .hash_password(&data[..], str::from_utf8(&salt[..]).unwrap())
