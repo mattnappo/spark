@@ -28,6 +28,14 @@ pub struct ServerKey {
     salt: [u8; SALT_LEN],
 }
 
+/// An encrypted `ServerKey` containing necessary decrypting information
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EncServerKey {
+    server_key: Vec<u8>,
+    nonce: [u8; NONCE_LEN],
+    salt: [u8; SALT_LEN],
+}
+
 impl ServerKey {
     /// Initialize a new server key
     pub fn new() -> Self {
@@ -37,7 +45,7 @@ impl ServerKey {
             .expect("failed to generate a key");
         let pubkey = RsaPublicKey::from(&privkey);
 
-        // Saltgen
+        // Saltgen TODO Specify len explicitly
         let raw_salt = SaltString::generate(&mut OsRng);
         let raw_salt = raw_salt.as_bytes();
         let mut salt = [0u8; SALT_LEN];
@@ -53,37 +61,35 @@ impl ServerKey {
     }
 
     /// Return an encrypted `ServerKey` with a user passphrase and consume the `ServerKey`
-    pub fn lock(self) -> Result<Vec<u8>, bincode::Error> {
+    pub fn lock(self) -> Result<EncServerKey, bincode::Error> {
         // Serialize
         let ser = bincode::serialize(&self).unwrap();
 
-        // Read user passphrase from stdin and expand
-        let phrase = {
-            print!("Set passphrase: ");
-            io::stdout().flush().unwrap();
-            let phrase1 = rpassword::read_password().unwrap();
-
-            print!("Confirm passphrase: ");
-            io::stdout().flush().unwrap();
-            let phrase2 = rpassword::read_password().unwrap();
-
-            if phrase1 != phrase2 {
-                // .unwrap()
-                println!("passphrases do not match");
-                return Ok(Vec::new());
-            }
-            phrase1
-        };
-
-        let expanded = a2_hash(Vec::from(phrase.as_bytes()), self.salt);
-
-        // Generate cipher
-        let key = Key::from_slice(&expanded[..]);
-        let cipher = Aes256Gcm::new(key);
-        let nonce = Nonce::from_slice(&self.salt[0..12]);
+        // TODO make idiomatic
+        let mut ser_nonce = [0u8; NONCE_LEN];
+        for i in 0..SALT_LEN {
+            ser_nonce[i] = self.salt[i];
+        }
+        let nonce = Nonce::from_slice(&self.salt[0..NONCE_LEN]);
 
         // Encrypt
-        Ok(cipher.encrypt(nonce, &ser[..]).unwrap())
+        let cipher = derive_key(self.salt);
+        Ok(EncServerKey {
+            server_key: cipher.encrypt(nonce, &ser[..]).unwrap(),
+            nonce: ser_nonce,
+            salt: self.salt,
+        })
+    }
+
+    /// Unlock a `ServerKey`
+    pub fn unlock(enc: EncServerKey) -> Result<Self, bincode::Error> {
+        // Decrypt the bytes
+        let cipher = derive_key(enc.salt);
+        let nonce = Nonce::from_slice(&enc.nonce[..]);
+        let decrypted = cipher.decrypt(nonce, &enc.server_key[..]).unwrap();
+
+        // Deserialize
+        bincode::deserialize::<Self>(&decrypted[..])
     }
 }
 
@@ -110,7 +116,5 @@ mod tests {
         println!("server key: {:?}", sk);
 
         let locked = sk.lock().unwrap();
-        println!("ser len : {:?}", locked.len());
-        println!("ser: {:?}", locked);
     }
 }
