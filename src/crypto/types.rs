@@ -1,5 +1,5 @@
 use crate::crypto::*;
-use crate::{Error, DATA_DIR};
+use crate::{Error, GeneralError, DATA_DIR};
 use aes_gcm::aead::{Aead, NewAead};
 use aes_gcm::{Aes256Gcm, Key, Nonce};
 use argon2::{
@@ -99,7 +99,7 @@ impl ServerKey {
 
     /// Lock and write this key to the disk
     // TODO Make return path
-    pub fn write_key(self) -> Result<(), Error> {
+    pub fn write_key(self) -> Result<String, Error> {
         // Lock and serialize
         let salt: [u8; SALT_LEN] = self.salt;
         let locked = self.lock().unwrap();
@@ -109,8 +109,16 @@ impl ServerKey {
         let filename = format!("{}{}", &hex::encode(salt)[0..12], ".esk");
         fs::create_dir_all(DATA_DIR);
         let path = Path::new(DATA_DIR).join(filename);
-        let mut file = File::create(path)?;
-        Ok(file.write_all(&ser[..])?)
+        let mut file = File::create(&path)?;
+        file.write_all(&ser[..])?;
+
+        // Return filename
+        match path.to_str() {
+            Some(p) => Ok(String::from(p)),
+            None => Err(Error::General(GeneralError::new(
+                "cannot construct path".to_string(),
+            ))),
+        }
     }
 
     /// Read and decrypt a key from disk
@@ -118,8 +126,7 @@ impl ServerKey {
         // Read file, deserialize, decrypt
         let mut file = File::open(path)?;
         let mut buf = Vec::new();
-        file.read(&mut buf)?; // ERR LINE
-        println!("buffer: {:?}", buf);
+        file.read_to_end(&mut buf)?;
         let key = bincode::deserialize::<EncServerKey>(&buf)?;
 
         // Decrypt

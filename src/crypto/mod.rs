@@ -1,5 +1,6 @@
 pub mod types;
 
+use crate::{Error, GeneralError};
 use aes_gcm::aead::{Aead, NewAead};
 use aes_gcm::{Aes256Gcm, Key, Nonce};
 use argon2::{
@@ -32,26 +33,28 @@ pub fn a2_hash(data: Vec<u8>, salt: [u8; SALT_LEN]) -> Vec<u8> {
     }
 }
 
+/// Read a passphrase from the user with confirmation
+fn read_passphrase_confirm() -> Result<String, Error> {
+    print!("Set passphrase: ");
+    io::stdout().flush().unwrap();
+    let phrase1 = rpassword::read_password().unwrap();
+
+    print!("Confirm passphrase: ");
+    io::stdout().flush().unwrap();
+    let phrase2 = rpassword::read_password().unwrap();
+
+    if phrase1 != phrase2 {
+        // .unwrap()
+        panic!("passphrases do not match")
+    }
+    phrase1
+}
+
 /// Derive a key from a passphrase supplied by stdin
 // pub fn derive_key(salt: [u8; SALT_LEN]) -> (Aes256Gcm, Nonce<u8>) {
 // TODO Fix this return type to return `Nonce`
 pub fn derive_key(salt: [u8; SALT_LEN]) -> Aes256Gcm {
     // Read user passphrase from stdin and expand
-    let phrase = {
-        print!("Set passphrase: ");
-        io::stdout().flush().unwrap();
-        let phrase1 = rpassword::read_password().unwrap();
-
-        print!("Confirm passphrase: ");
-        io::stdout().flush().unwrap();
-        let phrase2 = rpassword::read_password().unwrap();
-
-        if phrase1 != phrase2 {
-            // .unwrap()
-            panic!("passphrases do not match")
-        }
-        phrase1
-    };
     let expanded = a2_hash(Vec::from(phrase.as_bytes()), salt);
 
     // The nonce (96 bits) is the a2 hash of the salt (16 byte)

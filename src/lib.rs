@@ -1,7 +1,8 @@
 pub mod crypto;
 pub mod primitives;
 
-use std::io;
+use std::error::Error as StdError;
+use std::{fmt, io};
 
 pub const DATA_DIR: &'static str = "./data/";
 
@@ -11,6 +12,39 @@ pub enum Error {
     Bincode(bincode::Error),
     Io(io::Error),
     Aes(aes_gcm::Error),
+    General(GeneralError),
+    Fail(String),
+}
+
+#[derive(Debug)]
+pub struct GeneralError {
+    details: String,
+}
+
+impl GeneralError {
+    pub fn new(details: String) -> Self {
+        Self { details }
+    }
+}
+
+impl fmt::Display for GeneralError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "GeneralError: {}", self.details)
+    }
+}
+
+impl StdError for GeneralError {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+        None
+    }
+}
+
+// TODO: Write a derive macro for these
+
+impl From<GeneralError> for Error {
+    fn from(err: GeneralError) -> Error {
+        Error::General(err)
+    }
 }
 
 impl From<io::Error> for Error {
