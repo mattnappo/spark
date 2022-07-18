@@ -2,26 +2,13 @@ pub mod crypto;
 pub mod primitives;
 
 use argon2::password_hash::errors::Error as HashError;
+use rsa::errors::Error as RsaError;
 use std::error::Error as StdError;
 use std::str;
 use std::time::SystemTimeError;
 use std::{fmt, io};
 
 pub const DATA_DIR: &'static str = "./data/";
-
-/// Custom error type for this crate
-#[derive(Debug)]
-pub enum Error {
-    Bincode(bincode::Error),
-    Io(io::Error),
-    Aes(aes_gcm::Error),
-    General(GeneralError),
-    Argon2(argon2::Error),
-    Utf8(str::Utf8Error),
-    Hashing(HashError),
-    SystemTime(SystemTimeError),
-    Fail(String),
-}
 
 #[derive(Debug)]
 pub struct GeneralError {
@@ -46,13 +33,35 @@ impl StdError for GeneralError {
     }
 }
 
+/// Custom error type for this crate
+#[derive(Debug)]
+pub enum Error {
+    Bincode(bincode::Error),
+    Io(io::Error),
+    Aes(aes_gcm::Error),
+    Rsa(RsaError),
+    General(GeneralError),
+    Argon2(argon2::Error),
+    Utf8(str::Utf8Error),
+    Hashing(HashError),
+    SystemTime(SystemTimeError),
+    Fail(String),
+}
+
 // TODO: Write a derive macro for these
+
+impl From<RsaError> for Error {
+    fn from(err: RsaError) -> Error {
+        Error::Rsa(err)
+    }
+}
 
 impl From<SystemTimeError> for Error {
     fn from(err: SystemTimeError) -> Error {
         Error::SystemTime(err)
     }
 }
+
 impl From<GeneralError> for Error {
     fn from(err: GeneralError) -> Error {
         Error::General(err)

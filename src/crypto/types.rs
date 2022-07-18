@@ -1,3 +1,4 @@
+use crate::crypto::types;
 use crate::crypto::*;
 use crate::{Error, GeneralError, DATA_DIR};
 use aes_gcm::aead::{Aead, NewAead};
@@ -22,7 +23,7 @@ use std::path::Path;
 
 /// Server secret information
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ServerKey {
+struct ServerKey {
     /// The core private key used to decrypt all secrets
     privkey: RsaPrivateKey,
 
@@ -33,13 +34,24 @@ pub struct ServerKey {
     salt: [u8; SALT_LEN],
 }
 
-/// An encrypted `ServerKey` containing necessary decrypting information
+/// An encrypted `ServerKey` containing necessary decrypting information.
+/// This is the structure that is sent over the network, and stored on the
+/// server's fs.
 #[derive(Debug, Serialize, Deserialize)]
 struct EncServerKey {
     server_key: Vec<u8>,
     nonce: [u8; NONCE_LEN],
     salt: [u8; SALT_LEN],
 }
+
+/*
+ * network
+ * first server will send the encrypted key
+ * client will use ServerKey::unlock
+ * Then the Encryptor functions can be used
+ * To encrypt file: will encrypt using Encryptor and send
+ * To decrypt: server will also send file, and will use Encryptor to decrypt
+ */
 
 impl ServerKey {
     /// Initialize a new server key
@@ -65,7 +77,7 @@ impl ServerKey {
         }
     }
 
-    /// Return an encrypted `ServerKey` with a user passphrase and consume the `ServerKey`
+    /// Convert a `ServerKey` into an `EncServerKey`
     fn lock(self) -> Result<EncServerKey, Error> {
         // Serialize
         let ser = bincode::serialize(&self)?;
@@ -86,8 +98,8 @@ impl ServerKey {
         })
     }
 
-    /// Unlock a `ServerKey`
-    fn unlock(enc: EncServerKey) -> Result<Self, Error> {
+    /// Convert an `EncServerKey` into a `ServerKey`
+    pub fn unlock(enc: EncServerKey) -> Result<Self, Error> {
         // Decrypt the bytes
         let cipher = derive_key(enc.salt, false)?;
         let nonce = Nonce::from_slice(&enc.nonce[..]);
@@ -132,11 +144,28 @@ impl ServerKey {
     }
 }
 
-impl TryFrom<Vec<u8>> for ServerKey {
-    type Error = bincode::Error;
+// TODO: rename ServerKey to Key
+impl<'d, T: Payload<'d>> Encryptor<'d, T> for ServerKey {
+    fn encrypt(&self, sec: Secret<'d, T>) -> Result<EncSecret, Error> {
+        // Serialize and encrypt
+        let ser = bincode::serialize(&sec)?;
+        let mut rng = rand::thread_rng();
+        let padding = PaddingScheme::new_pkcs1v15_encrypt();
 
-    fn try_from(bytes: Vec<u8>) -> Result<Self, Self::Error> {
-        bincode::deserialize(&bytes[..])
+        Ok(EncSecret {
+            secret: self.pubkey.encrypt(&mut rng, padding, &ser[..])?,
+            header: sec.header,
+        })
+    }
+
+    fn decrypt(&self, sec: EncSecret) -> Result<Secret<'d, T>, Error> {
+        // Decrypt
+        let mut rng = rand::thread_rng();
+        let padding = PaddingScheme::new_pkcs1v15_encrypt();
+        let dec = self.privkey.decrypt(padding, &sec.secret[..])?;
+
+        // Deserialize
+        Ok(bincode::deserialize(&dec[..])?)
     }
 }
 

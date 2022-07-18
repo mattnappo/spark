@@ -1,5 +1,7 @@
 pub mod types;
 
+use super::primitives::payloads::Payload;
+use super::primitives::secret::{EncSecret, Secret};
 use crate::{Error, GeneralError};
 use aes_gcm::aead::{Aead, NewAead};
 use aes_gcm::{Aes256Gcm, Key, Nonce};
@@ -19,9 +21,16 @@ pub const HASH_LEN: usize = 32;
 pub const NONCE_LEN: usize = 12;
 pub const KEY_SIZE: usize = 2048;
 
+/// A type with the ability to encrypt and decrypt secrets. Functions
+/// in this trait are to be run client-side.
+pub trait Encryptor<'d, T: Payload<'d>> {
+    fn encrypt(&self, sec: Secret<'d, T>) -> Result<EncSecret, Error>;
+    fn decrypt(&self, sec: EncSecret) -> Result<Secret<'d, T>, Error>;
+}
+
+/// Hash input data with a given salt using Argon2
 pub fn a2_hash(data: Vec<u8>, salt: [u8; SALT_LEN]) -> Result<Vec<u8>, Error> {
     let ctx = Argon2::from(Params::new(4096u32, 3u32, 1u32, Some(HASH_LEN))?);
-    // (&data[..]).asd(); // &[u8]
     match ctx
         .hash_password(&data[..], str::from_utf8(&salt[..])?)?
         .hash

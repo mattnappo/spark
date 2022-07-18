@@ -1,4 +1,5 @@
 use super::payloads::*;
+use crate::crypto::{NONCE_LEN, SALT_LEN};
 use crate::Error;
 use argon2::{
     password_hash::{
@@ -7,14 +8,15 @@ use argon2::{
     },
     Argon2,
 };
+use serde::{Deserialize, Serialize};
 use std::default::Default;
 use std::net::Ipv4Addr;
 use std::string::ToString;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// The scope of which systems are allowed to access a secret
-#[derive(Debug)]
-enum Scope {
+#[derive(Debug, Serialize, Deserialize)]
+pub enum Scope {
     /// Any client
     Public,
 
@@ -26,8 +28,8 @@ enum Scope {
 }
 
 /// A unique secret ID
-#[derive(Default, Debug)]
-struct SecretID(Vec<u8>);
+#[derive(Default, Debug, Serialize, Deserialize)]
+pub struct SecretID(Vec<u8>);
 
 impl SecretID {
     fn from(label: &str, desc: &str, creation: u128) -> Result<Self, Error> {
@@ -51,9 +53,9 @@ impl ToString for SecretID {
 }
 
 /// Secret metadata information contained in every secret
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 struct Header {
-    /// The unique identifier
+    /// The unique secret identifier
     id: SecretID,
 
     /// A label
@@ -61,6 +63,9 @@ struct Header {
 
     /// A description of the secret
     desc: String,
+
+    /// The secret type
+    tag: Tag,
 
     /// Epoch in ms of creation time
     creation: u128,
@@ -82,6 +87,7 @@ impl Header {
     fn new(
         label: &str,
         desc: &str,
+        tag: Tag,
         expiration: u64,
         scope: Scope,
     ) -> Result<Self, Error> {
@@ -91,6 +97,7 @@ impl Header {
             id: SecretID::from(label, desc, creation)?,
             label: label.to_owned(),
             desc: desc.to_owned(),
+            tag,
             creation,
             expiration,
             scope,
@@ -98,18 +105,40 @@ impl Header {
     }
 }
 
-/// The core secret type
-#[derive(Debug)]
-enum Secret {
-    // General payload types
-    APIKey(Header, GenericPayload<String>),
-    PublicKey(Header, GenericPayload<Vec<u8>>),
-    PrivateKey(Header, GenericPayload<Vec<u8>>),
-    Other(Header, GenericPayload<Vec<u8>>),
+/// The type of secret
+#[derive(Debug, Serialize, Deserialize)]
+pub enum Tag {
+    APIKey,
+    PublicKey,
+    PrivateKey,
+    Keypair,
+    Credentials,
+    Other,
+}
 
-    // Specific payload types
-    Keypair(Header, KeypairPayload),
-    Credentials(Header, CredentialsPayload),
+/// The core secret type
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Secret<'d, T: Payload<'d>> {
+    /// The secret
+    secret: T,
+
+    test: &'d str,
+
+    /// The secret metadata (should not be encrypted)
+    #[serde(skip_serializing)]
+    pub header: Header,
+}
+
+impl<'d, T: Payload<'d>> Secret<'d, T> {}
+
+/// An encrypted secret, which is what is written to fs
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EncSecret {
+    /// The serialized, encrypted secret
+    pub secret: Vec<u8>,
+
+    /// The secret header (plaintext)
+    pub header: Header,
 }
 
 #[cfg(test)]
@@ -124,7 +153,7 @@ mod tests {
 
     #[test]
     fn test_secretid() {
-        let id = SecretID::from("label", "desc", 100);
+        let id = SecretID::from("label", "desc", 100).unwrap();
         println!("id: {:?}", id);
         println!("string id: {}", id.to_string());
     }
