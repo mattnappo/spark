@@ -23,7 +23,7 @@ use std::path::Path;
 
 /// Server secret information
 #[derive(Debug, Serialize, Deserialize)]
-struct ServerKey {
+pub struct ServerKey {
     /// The core private key used to decrypt all secrets
     privkey: RsaPrivateKey,
 
@@ -38,7 +38,7 @@ struct ServerKey {
 /// This is the structure that is sent over the network, and stored on the
 /// server's fs.
 #[derive(Debug, Serialize, Deserialize)]
-struct EncServerKey {
+pub struct EncServerKey {
     server_key: Vec<u8>,
     nonce: [u8; NONCE_LEN],
     salt: [u8; SALT_LEN],
@@ -145,8 +145,8 @@ impl ServerKey {
 }
 
 // TODO: rename ServerKey to Key
-impl<'d, T: Payload<'d>> Encryptor<'d, T> for ServerKey {
-    fn encrypt(&self, sec: Secret<'d, T>) -> Result<EncSecret, Error> {
+impl Encryptor for ServerKey {
+    fn encrypt(&self, sec: Secret) -> Result<EncSecret, Error> {
         // Serialize and encrypt
         let ser = bincode::serialize(&sec)?;
         let mut rng = rand::thread_rng();
@@ -158,7 +158,7 @@ impl<'d, T: Payload<'d>> Encryptor<'d, T> for ServerKey {
         })
     }
 
-    fn decrypt(&self, sec: EncSecret) -> Result<Secret<'d, T>, Error> {
+    fn decrypt(&self, sec: EncSecret) -> Result<Secret, Error> {
         // Decrypt
         let mut rng = rand::thread_rng();
         let padding = PaddingScheme::new_pkcs1v15_encrypt();

@@ -1,5 +1,5 @@
 use crate::crypto::SALT_LEN;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GenericPayload {
@@ -19,9 +19,10 @@ pub struct KeypairPayload {
     private: Vec<u8>,
 }
 
-pub trait Payload<'de>: Serialize + Deserialize<'de> {}
+#[derive(Debug, Serialize, Deserialize)]
+pub enum Payload {
+    Generic(GenericPayload),
+    Credentials(CredentialsPayload),
+    Keypair(KeypairPayload)
+}
 
-// TODO: add checksum and digital signature functions here
-impl<'de> Payload<'de> for GenericPayload {}
-impl<'de> Payload<'de> for CredentialsPayload {}
-impl<'de> Payload<'de> for KeypairPayload {}

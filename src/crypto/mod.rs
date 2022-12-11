@@ -23,9 +23,9 @@ pub const KEY_SIZE: usize = 2048;
 
 /// A type with the ability to encrypt and decrypt secrets. Functions
 /// in this trait are to be run client-side.
-pub trait Encryptor<'d, T: Payload<'d>> {
-    fn encrypt(&self, sec: Secret<'d, T>) -> Result<EncSecret, Error>;
-    fn decrypt(&self, sec: EncSecret) -> Result<Secret<'d, T>, Error>;
+pub trait Encryptor {
+    fn encrypt(&self, sec: Secret) -> Result<EncSecret, Error>;
+    fn decrypt(&self, sec: EncSecret) -> Result<Secret, Error>;
 }
 
 /// Hash input data with a given salt using Argon2

@@ -54,7 +54,7 @@ impl ToString for SecretID {
 
 /// Secret metadata information contained in every secret
 #[derive(Debug, Serialize, Deserialize)]
-struct Header {
+pub struct Header {
     /// The unique secret identifier
     id: SecretID,
 
@@ -118,18 +118,14 @@ pub enum Tag {
 
 /// The core secret type
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Secret<'d, T: Payload<'d>> {
+pub struct Secret {
     /// The secret
-    secret: T,
-
-    test: &'d str,
+    secret: Payload,
 
     /// The secret metadata (should not be encrypted)
     #[serde(skip_serializing)]
     pub header: Header,
 }
-
-impl<'d, T: Payload<'d>> Secret<'d, T> {}
 
 /// An encrypted secret, which is what is written to fs
 #[derive(Debug, Serialize, Deserialize)]
