@@ -32,8 +32,12 @@ pub enum Scope {
 pub struct SecretID(Vec<u8>);
 
 impl SecretID {
-    fn from(label: &str, desc: &str, creation: u128) -> Result<Self, Error> {
-        let data = format!("{}{}{}", &label, &desc, creation);
+    fn from(
+        label: &str,
+        desc: Option<&str>,
+        creation: u128,
+    ) -> Result<Self, Error> {
+        let data = format!("{}{:?}{}", &label, &desc, creation);
         let salt = SaltString::generate(&mut OsRng);
         let argon2 = Argon2::default();
 
@@ -62,10 +66,10 @@ pub struct Header {
     label: String,
 
     /// A description of the secret
-    desc: String,
+    desc: Option<String>,
 
     /// The secret type
-    tag: Tag,
+    tag: Option<Tag>,
 
     /// Epoch in ms of creation time
     creation: u128,
@@ -84,10 +88,10 @@ pub struct Header {
 }
 
 impl Header {
-    fn new(
+    pub fn new(
         label: &str,
-        desc: &str,
-        tag: Tag,
+        desc: Option<&str>,
+        tag: Option<Tag>,
         expiration: u64,
         scope: Scope,
     ) -> Result<Self, Error> {
@@ -96,7 +100,7 @@ impl Header {
         Ok(Self {
             id: SecretID::from(label, desc, creation)?,
             label: label.to_owned(),
-            desc: desc.to_owned(),
+            desc: desc.map(|d| d.to_owned()),
             tag,
             creation,
             expiration,
@@ -120,7 +124,7 @@ pub enum Tag {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Secret {
     /// The secret
-    secret: Payload,
+    pub secret: Payload,
 
     /// The secret metadata (should not be encrypted)
     #[serde(skip_serializing)]

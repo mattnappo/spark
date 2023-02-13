@@ -1,3 +1,5 @@
+use crate::primitives::secret::*;
+use crate::Error;
 use std::path::Path;
 
 /// A running server instance
@@ -7,16 +9,35 @@ pub struct Server {
 
     /// The RPC server instance
     rpc: Option<()>,
-
-    /// The server's key (in memory)
-    key: ServerKey,
 }
 
 impl Server {
     /// Initialize a new server given path to key and database
-    fn load(key: Path, store: Path) {}
+    pub fn load(db_path: &Path) -> Result<Self, Error> {
+        Ok(Self {
+            store: sled::open(db_path)?,
+            rpc: None,
+        })
+    }
 
-    fn insert_secret(&mut self, secret: EncSecret) {}
+    pub fn dump(&self) {
+        println!("-- dump --");
+        self.store.iter().keys().for_each(|k| {
+            println!("{:?}", bincode::deserialize::<Header>(&k.unwrap()))
+        });
+        println!("----------");
+    }
 
-    fn serve() {}
+    pub fn put_secret(&mut self, secret: EncSecret) -> Result<(), Error> {
+        self.store
+            .insert(bincode::serialize(&secret.header)?, secret.secret)
+            .map(|_| ())
+            .map_err(|e| Error::Sled(e))
+    }
+
+    pub fn get_secret(&mut self, secret: EncSecret) {}
+
+    pub fn serve() {
+        println!("serving!");
+    }
 }

@@ -1,3 +1,4 @@
+pub mod core;
 pub mod crypto;
 pub mod primitives;
 
@@ -45,6 +46,7 @@ pub enum Error {
     Utf8(str::Utf8Error),
     Hashing(HashError),
     SystemTime(SystemTimeError),
+    Sled(sled::Error),
     Fail(String),
 }
 
@@ -100,5 +102,11 @@ impl From<bincode::Error> for Error {
 impl From<aes_gcm::Error> for Error {
     fn from(err: aes_gcm::Error) -> Error {
         Error::Aes(err)
+    }
+}
+
+impl From<sled::Error> for Error {
+    fn from(err: sled::Error) -> Error {
+        Error::Sled(err)
     }
 }
