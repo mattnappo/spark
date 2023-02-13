@@ -88,6 +88,7 @@ fn test_secretstore() {
     };
 
     let query_copy = query_header.clone();
+    let mut query_copy2 = query_header.clone();
 
     let got_secret: EncSecret =
         server.get_secret(query_header).unwrap().unwrap();
@@ -99,6 +100,15 @@ fn test_secretstore() {
 
     let got_from_id = server.get_secret_from_id(query_copy.id).unwrap();
     println!("secret got from id: {got_from_id:?}");
+
+    // Test fail cases
+    eprintln!(
+        "{:?}",
+        server.get_secret_from_id(SecretID::from_vec(&[0; 32]).unwrap())
+    );
+
+    query_copy2.creation = 0;
+    eprintln!("{:?}", server.get_secret(query_copy2));
 }
 
 fn main() {
