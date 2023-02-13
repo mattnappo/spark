@@ -87,6 +87,8 @@ fn test_secretstore() {
         scope: Scope::Public,
     };
 
+    let query_copy = query_header.clone();
+
     let got_secret: EncSecret =
         server.get_secret(query_header).unwrap().unwrap();
 
@@ -94,11 +96,14 @@ fn test_secretstore() {
 
     let decrypted_secret: Secret = key.decrypt(got_secret).unwrap();
     println!("decrypted secret: {decrypted_secret:?}");
+
+    let got_from_id = server.get_secret_from_id(query_copy.id).unwrap();
+    println!("secret got from id: {got_from_id:?}");
 }
 
 fn main() {
     //test_keygen();
     //test_key_unlock();
-    //test_secretstore();
-    test_encrypter();
+    test_secretstore();
+    //test_encrypter();
 }

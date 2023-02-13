@@ -20,6 +20,7 @@ impl Server {
         })
     }
 
+    // TODO make these priv
     pub fn dump(&self) {
         println!("-- dump --");
         self.store.iter().keys().for_each(|k| {
@@ -51,15 +52,39 @@ impl Server {
     }
 
     // TODO This is O(n) right now. Need higher secondary indexing structure.
+    /// Will panic if internal sled db is corrupted
     pub fn get_secret_from_id(
         &self,
         secret_id: SecretID,
     ) -> Result<Option<EncSecret>, Error> {
-        //self.store.iter().filter
+        self.store
+            .iter()
+            .find(|d| {
+                // idk why this is a result
+                bincode::deserialize::<Header>(&d.as_ref().unwrap().0)
+                    .unwrap()
+                    .id
+                    == secret_id
+            })
+            .map(|d| {
+                d.map(|(k, v)| EncSecret {
+                    header: bincode::deserialize::<Header>(&k).unwrap(),
+                    secret: v.to_vec(),
+                })
+            })
+            .transpose()
+            .map_err(|e| Error::Sled(e))
+    }
+
+    pub fn get_secrets_from_label(
+        &self,
+        label: &str,
+    ) -> Result<Vec<EncSecret>, Error> {
         todo!()
     }
 
-    pub fn serve() {
+    /// Start serving requests
+    pub fn serve(&mut self) {
         println!("serving!");
     }
 }
