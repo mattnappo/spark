@@ -15,7 +15,7 @@ use std::string::ToString;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// The scope of which systems are allowed to access a secret
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum Scope {
     /// Any client
     Public,
@@ -28,11 +28,11 @@ pub enum Scope {
 }
 
 /// A unique secret ID
-#[derive(Default, Debug, Serialize, Deserialize)]
+#[derive(Default, Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct SecretID(Vec<u8>);
 
 impl SecretID {
-    fn from(
+    pub fn from(
         label: &str,
         desc: Option<&str>,
         creation: u128,
@@ -48,6 +48,17 @@ impl SecretID {
 
         Ok(Self(id))
     }
+
+    pub fn from_vec(id: &[u8]) -> Result<Self, Error> {
+        if id.len() == 32 {
+            Ok(Self(id.to_vec()))
+        } else {
+            Err(Error::General(crate::GeneralError::new(format!(
+                "cannot construct SecretID from vec {id:?} of length {}",
+                id.len()
+            ))))
+        }
+    }
 }
 
 impl ToString for SecretID {
@@ -57,28 +68,28 @@ impl ToString for SecretID {
 }
 
 /// Secret metadata information contained in every secret
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct Header {
     /// The unique secret identifier
-    id: SecretID,
+    pub id: SecretID,
 
     /// A label
-    label: String,
+    pub label: String,
 
     /// A description of the secret
-    desc: Option<String>,
+    pub desc: Option<String>,
 
     /// The secret type
-    tag: Option<Tag>,
+    pub tag: Option<Tag>,
 
     /// Epoch in ms of creation time
-    creation: u128,
+    pub creation: u128,
 
     /// Expiration time (0 for no expiration)
-    expiration: u64,
+    pub expiration: u64,
 
     /// The secret's scope
-    scope: Scope,
+    pub scope: Scope,
     // TODO
     // A checksum for integrity
     //sum: Vec<u8>,
@@ -110,7 +121,7 @@ impl Header {
 }
 
 /// The type of secret
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum Tag {
     APIKey,
     PublicKey,
@@ -132,7 +143,7 @@ pub struct Secret {
 }
 
 /// An encrypted secret, which is what is written to fs
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct EncSecret {
     /// The serialized, encrypted secret
     pub secret: Vec<u8>,

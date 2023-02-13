@@ -35,7 +35,29 @@ impl Server {
             .map_err(|e| Error::Sled(e))
     }
 
-    pub fn get_secret(&mut self, secret: EncSecret) {}
+    pub fn get_secret(
+        &self,
+        secret_header: Header,
+    ) -> Result<Option<EncSecret>, Error> {
+        self.store.get(bincode::serialize(&secret_header)?).map(
+            |v| match v {
+                Some(secret) => Ok(Some(EncSecret {
+                    header: secret_header,
+                    secret: secret[..].to_vec(),
+                })),
+                None => Ok(None),
+            },
+        )?
+    }
+
+    // TODO This is O(n) right now. Need higher secondary indexing structure.
+    pub fn get_secret_from_id(
+        &self,
+        secret_id: SecretID,
+    ) -> Result<Option<EncSecret>, Error> {
+        //self.store.iter().filter
+        todo!()
+    }
 
     pub fn serve() {
         println!("serving!");

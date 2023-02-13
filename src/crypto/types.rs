@@ -148,7 +148,7 @@ impl ServerKey {
 impl Encryptor for ServerKey {
     fn encrypt(&self, sec: Secret) -> Result<EncSecret, Error> {
         // Serialize and encrypt
-        let ser = bincode::serialize(&sec)?;
+        let ser = bincode::serialize(&sec.secret)?;
         let mut rng = rand::thread_rng();
         let padding = PaddingScheme::new_pkcs1v15_encrypt();
 
@@ -163,9 +163,17 @@ impl Encryptor for ServerKey {
         let mut rng = rand::thread_rng();
         let padding = PaddingScheme::new_pkcs1v15_encrypt();
         let dec = self.privkey.decrypt(padding, &sec.secret[..])?;
+        // same thinking i did when i was in gleason, idk where that code went
+        // TODO: when i wake up: test Encryptor::encrypt/decrypt in isolation
+
+        println!("this is okay");
+        println!("dec = {dec:?}");
 
         // Deserialize
-        Ok(bincode::deserialize(&dec[..])?)
+        Ok(Secret {
+            secret: bincode::deserialize(&dec[..])?,
+            header: sec.header,
+        })
     }
 }
 
