@@ -1,6 +1,7 @@
 use capnp::capability::Promise;
 use capnp_rpc::{pry, rpc_twoparty_capnp, twoparty, RpcSystem};
 use futures::{AsyncReadExt, TryFutureExt};
+use log::info;
 
 use crate::map_capnp;
 use crate::map_capnp::map;
@@ -16,7 +17,7 @@ struct DBKey {
 }
 
 #[derive(Clone)]
-enum DType {
+pub enum DType {
     A,
     B,
     C,
@@ -133,7 +134,9 @@ impl map::Server for MapImpl {
     ) -> Promise<(), capnp::Error> {
         match potential_err() {
             Ok(_) => Promise::ok(()),
-            Err(e) => Promise::err(capnp::Error::failed(format!("custom err {e}"))),
+            Err(e) => {
+                Promise::err(capnp::Error::failed(format!("custom err {e}")))
+            }
         }
     }
 }
@@ -147,12 +150,18 @@ pub async fn serve(port: u16) -> Result<(), Box<dyn std::error::Error>> {
     tokio::task::LocalSet::new()
         .run_until(async move {
             let listener = tokio::net::TcpListener::bind(&addr).await?;
-            let map_rpc: map::Client = capnp_rpc::new_client(MapImpl::default());
+            let map_rpc: map::Client =
+                capnp_rpc::new_client(MapImpl::default());
+
+            info!("serving on {port}");
 
             loop {
                 let (stream, _) = listener.accept().await?;
+                info!("handling new conn {stream:?}");
+
                 let (reader, writer) =
-                    tokio_util::compat::TokioAsyncReadCompatExt::compat(stream).split();
+                    tokio_util::compat::TokioAsyncReadCompatExt::compat(stream)
+                        .split();
 
                 let network = twoparty::VatNetwork::new(
                     reader,
@@ -161,8 +170,13 @@ pub async fn serve(port: u16) -> Result<(), Box<dyn std::error::Error>> {
                     Default::default(),
                 );
 
-                let rpc_system = RpcSystem::new(Box::new(network), Some(map_rpc.clone().client));
-                tokio::task::spawn_local(rpc_system.map_err(|e| eprintln!("error: {e:?}")));
+                let rpc_system = RpcSystem::new(
+                    Box::new(network),
+                    Some(map_rpc.clone().client),
+                );
+                tokio::task::spawn_local(
+                    rpc_system.map_err(|e| eprintln!("error: {e:?}")),
+                );
             }
         })
         .await

@@ -11,9 +11,11 @@ path = "src/main.rs"
 [dependencies]
 capnp = "0.16.0"
 capnp-rpc = "0.16.1"
-tokio = { version = "1.25.0", features = ["net", "rt", "macros"] }
+tokio = { version = "1.25.0", features = ["full", "net", "rt", "macros"] }
 tokio-util = { version = "0.7.7", features = ["compat"] }
 futures = "0.3.26"
+env_logger = "0.10.0"
+log = "0.4.17"
 
 [build-dependencies]
 capnpc = "0.16.2"
