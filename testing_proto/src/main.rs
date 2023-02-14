@@ -1,6 +1,5 @@
 use std::env;
 use std::error::Error;
-use std::net::{SocketAddr, ToSocketAddrs};
 
 pub mod client;
 pub mod map_capnp;
@@ -10,7 +9,7 @@ static USAGE: &str =
     "usage:\n  ./testing_proto --server <port>\n  ./testing_proto --client <ip>:<port> <query>";
 
 async fn client(addr: &str, query: &str) -> Result<(), Box<dyn Error>> {
-    Ok(())
+    client::request(addr, query).await
 }
 
 async fn server(port: u16) -> Result<(), Box<dyn Error>> {

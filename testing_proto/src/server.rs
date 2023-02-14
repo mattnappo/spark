@@ -1,7 +1,7 @@
 use capnp::capability::Promise;
 use capnp_rpc::{pry, rpc_twoparty_capnp, twoparty, RpcSystem};
 use futures::{AsyncReadExt, TryFutureExt};
-use log::info;
+use log::{debug, info};
 
 use crate::map_capnp;
 use crate::map_capnp::map;
@@ -10,26 +10,55 @@ use std::collections::HashMap;
 use std::default::Default;
 use std::net::ToSocketAddrs;
 
-#[derive(Hash, PartialEq, Eq)]
+#[derive(Hash, PartialEq, Eq, Debug)]
 struct DBKey {
     id: u64,
     label: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum DType {
     A,
     B,
     C,
+    Fail
+}
+
+impl DType {
+    pub fn from(label: &str) -> Self {
+        match label {
+            "a" => DType::A,
+            "b" => DType::B,
+            "c" => DType::C,
+            _ => panic!(),
+        }
+    }
+
+    pub fn from_capn(dtype: map_capnp::Type) -> DType {
+        match dtype {
+            map_capnp::Type::A => DType::A,
+            map_capnp::Type::B => DType::B,
+            map_capnp::Type::C => DType::C,
+        }
+    }
+
+    pub fn to_capn(dtype: DType) -> map_capnp::Type {
+        match dtype {
+            DType::A => map_capnp::Type::A,
+            DType::B => map_capnp::Type::B,
+            DType::C => map_capnp::Type::C,
+            DType::Fail => map_capnp::Type::A,
+        }
+    }
 }
 
 impl Default for DType {
     fn default() -> Self {
-        Self::A
+        Self::Fail
     }
 }
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 struct DBVal {
     data: Vec<u8>,
     dtype: DType,
@@ -41,22 +70,6 @@ type DB = HashMap<DBKey, DBVal>;
 #[derive(Default)]
 struct MapImpl {
     db: DB,
-}
-
-fn dtpye_from_capn(dtype: map_capnp::Type) -> DType {
-    match dtype {
-        map_capnp::Type::A => DType::A,
-        map_capnp::Type::B => DType::B,
-        map_capnp::Type::C => DType::C,
-    }
-}
-
-fn dtype_to_capn(dtype: DType) -> map_capnp::Type {
-    match dtype {
-        DType::A => map_capnp::Type::A,
-        DType::B => map_capnp::Type::B,
-        DType::C => map_capnp::Type::C,
-    }
 }
 
 fn potential_err() -> Result<(), i32> {
@@ -80,7 +93,7 @@ impl map::Server for MapImpl {
 
         let mut res = results.get().init_val();
         res.set_data(&val.data);
-        res.set_type(dtype_to_capn(val.dtype));
+        res.set_type(DType::to_capn(val.dtype));
         Promise::ok(())
     }
 
@@ -97,9 +110,16 @@ impl map::Server for MapImpl {
         // Extract val info
         let val = pry!(params.get()).get_val();
         let data = pry!(pry!(val).get_data()).to_vec();
-        let dtype = dtpye_from_capn(pry!(pry!(val).get_type()));
+        let dtype = DType::from_capn(pry!(pry!(val).get_type()));
+
+        debug!("from req");
+        debug!("{id:?}");
+        debug!("{label:?}");
+        debug!("{data:?}");
+        debug!("{dtype:?}");
 
         // Internal logic
+        debug!("before insert: {:?}", self.db);
         self.db.insert(
             DBKey {
                 id,
@@ -110,17 +130,18 @@ impl map::Server for MapImpl {
                 dtype,
             },
         );
+        debug!("after insert: {:?}", self.db);
 
         // Build response
         let mut rtime = results.get().init_entry().init_info().init_time();
         rtime.set_minute(15);
         rtime.set_second(20);
 
-        let mut rkey = results.get().init_entry().init_key();
+        let mut rkey = pry!(results.get().get_entry()).init_key();
         rkey.set_id(id);
         rkey.set_label(&label);
 
-        let mut rval = results.get().init_entry().init_val();
+        let mut rval = pry!(results.get().get_entry()).init_val();
         rval.set_data(&data[..]);
         rval.set_type(pry!(pry!(val).get_type()));
 
