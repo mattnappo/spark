@@ -21,7 +21,7 @@ pub enum DType {
     A,
     B,
     C,
-    Fail
+    Fail,
 }
 
 impl DType {

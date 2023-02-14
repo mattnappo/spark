@@ -160,7 +160,6 @@ pub async fn request(addr: &str, query: &str) -> Result<(), Box<dyn Error>> {
 mod tests {
     use super::*;
 
-
     #[test]
     fn test_data_parser() {
         println!("{:?}", Parser::parse_data("[4,5,6]").unwrap());
@@ -175,6 +174,10 @@ mod tests {
                 .unwrap()
         );
 
-        println!("{:?}", Parser::parse_query("put{id:123,label:'hi'},{data:[4,5,6],type:c}").unwrap());
+        println!(
+            "{:?}",
+            Parser::parse_query("put{id:123,label:'hi'},{data:[4,5,6],type:c}")
+                .unwrap()
+        );
     }
 }
