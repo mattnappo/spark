@@ -16,7 +16,7 @@ struct DBKey {
     label: String,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum DType {
     A,
     B,
