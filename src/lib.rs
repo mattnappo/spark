@@ -11,6 +11,7 @@ use std::time::SystemTimeError;
 use std::{fmt, io};
 
 pub const DATA_DIR: &'static str = "./data/";
+pub const BOOTSTRAP_FILE: &'static str = "./Bootstrap.toml";
 
 #[derive(Debug)]
 pub struct GeneralError {

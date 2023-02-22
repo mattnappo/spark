@@ -17,9 +17,6 @@ path = "src/server.rs"
 [[bin]]
 name = "client"
 path = "src/client.rs"
-author = "Matt Nappo"
-version = "0.1.0"
-about = "A personal keyserver and secret manager"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -32,6 +29,7 @@ serde = { version = "1.0.103", features = ["derive"] }
 sled = "0.34.7"
 lazy_static = "1.4.0"
 clap = { version = "4.1.6", features = ["derive"] }
+toml = "0.7.2"
 
 rand = "0.8.5"
 hex = "0.4.3"

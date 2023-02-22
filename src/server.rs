@@ -1,7 +1,6 @@
-use std::env;
-use std::error::Error;
-use spark::core::server;
 use clap::Parser;
+use spark::core::server;
+use std::error::Error;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -17,6 +16,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     env_logger::init();
 
-    let server = server::Server::init(&args.db_path, &args.key_path, args.port)?;
+    let server =
+        server::Server::init(&args.db_path, &args.key_path, args.port)?;
     server.serve().await
 }
