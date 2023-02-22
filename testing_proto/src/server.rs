@@ -1,7 +1,7 @@
 use capnp::capability::Promise;
 use capnp_rpc::{pry, rpc_twoparty_capnp, twoparty, RpcSystem};
 use futures::{AsyncReadExt, TryFutureExt};
-use log::{debug, info};
+use log::{debug, info, error};
 
 use crate::map_capnp;
 use crate::map_capnp::map;
@@ -196,7 +196,7 @@ pub async fn serve(port: u16) -> Result<(), Box<dyn std::error::Error>> {
                     Some(map_rpc.clone().client),
                 );
                 tokio::task::spawn_local(
-                    rpc_system.map_err(|e| eprintln!("error: {e:?}")),
+                    rpc_system.map_err(|e| error!("{e:?}")),
                 );
             }
         })

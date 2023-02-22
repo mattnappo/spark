@@ -59,6 +59,10 @@ impl SecretID {
             ))))
         }
     }
+
+    pub fn bytes(&self) -> Vec<u8> {
+        self.0.clone()
+    }
 }
 
 impl ToString for SecretID {
@@ -129,6 +133,12 @@ pub enum Tag {
     Keypair,
     Credentials,
     Other,
+}
+
+impl Default for Tag {
+    fn default() -> Tag {
+        Tag::Other
+    }
 }
 
 /// The core secret type

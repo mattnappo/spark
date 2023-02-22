@@ -1,6 +1,7 @@
 pub mod core;
 pub mod crypto;
 pub mod primitives;
+pub mod protocol_capnp;
 
 use argon2::password_hash::errors::Error as HashError;
 use rsa::errors::Error as RsaError;
@@ -48,6 +49,18 @@ pub enum Error {
     SystemTime(SystemTimeError),
     Sled(sled::Error),
     Fail(String),
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Error: {:?}", self.to_string())
+    }
+}
+
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+        None
+    }
 }
 
 // TODO: Write a derive macro for these

@@ -21,13 +21,14 @@ use std::io::prelude::*;
 use std::io::Write;
 use std::path::Path;
 
-/// Server secret information
+/// Server key information
+/// This structure only lives temporarily, on the client
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ServerKey {
-    /// The core private key used to decrypt all secrets
+    /// The core private key used to decrypt secrets
     privkey: RsaPrivateKey,
 
-    /// The associated public key
+    /// The associated public key used to encrypt secrets
     pubkey: RsaPublicKey,
 
     /// The salt used for all hashing. Must be unique for each key
@@ -37,11 +38,23 @@ pub struct ServerKey {
 /// An encrypted `ServerKey` containing necessary decrypting information.
 /// This is the structure that is sent over the network, and stored on the
 /// server's fs.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct EncServerKey {
-    server_key: Vec<u8>,
-    nonce: [u8; NONCE_LEN],
-    salt: [u8; SALT_LEN],
+    pub server_key: Vec<u8>,
+    pub nonce: [u8; NONCE_LEN],
+    pub salt: [u8; SALT_LEN],
+}
+
+impl EncServerKey {
+    /// Load an encrypted server key into memory
+    pub fn load<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
+        // Read file, deserialize, decrypt
+        let mut file = File::open(path)?;
+        let mut buf = Vec::new();
+        file.read_to_end(&mut buf)?;
+        bincode::deserialize::<EncServerKey>(&buf)
+            .map_err(|e| Error::Bincode(e))
+    }
 }
 
 /*
@@ -119,7 +132,7 @@ impl ServerKey {
 
         // Set destination
         let filename = format!("{}{}", &hex::encode(salt)[0..12], ".esk");
-        fs::create_dir_all(DATA_DIR);
+        fs::create_dir_all(DATA_DIR)?;
         let path = Path::new(DATA_DIR).join(filename);
         let mut file = File::create(&path)?;
         file.write_all(&ser[..])?;
@@ -160,7 +173,7 @@ impl Encryptor for ServerKey {
 
     fn decrypt(&self, sec: EncSecret) -> Result<Secret, Error> {
         // Decrypt
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::thread_rng(); // TODO: necessary??
         let padding = PaddingScheme::new_pkcs1v15_encrypt();
         let dec = self.privkey.decrypt(padding, &sec.secret[..])?;
         // same thinking i did when i was in gleason, idk where that code went
